@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: payment-pxc-secrets
+  namespace: compileflow-lab
+type: Opaque
+stringData:
+  root: PaymentRoot123!
+  xtrabackup: PaymentBackup123!
+  monitor: PaymentMonitor123!
+  proxyadmin: PaymentProxy123!
+  operator: PaymentOperator123!
+  replication: PaymentReplica123!
+---
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBCluster
+metadata:
+  name: payment-pxc
+  namespace: compileflow-lab
+  finalizers:
+    - percona.com/delete-pxc-pods-in-order
+spec:
+  crVersion: 1.20.0
+  secretsName: payment-pxc-secrets
+  tls:
+    enabled: false
+  unsafeFlags:
+    tls: true
+    proxySize: true
+  updateStrategy: SmartUpdate
+  upgradeOptions:
+    apply: disabled
+    schedule: "0 4 * * *"
+  pxc:
+    size: 3
+    image: percona/percona-xtradb-cluster:8.4.8-8.1
+    autoRecovery: true
+    # Kind 实验集群只有一个工作节点，允许 3 个 PXC Pod 共用该节点。
+    # 生产环境应删除此设置，让 Operator 把数据库分散到 3 个 K8s 节点。
+    affinity:
+      antiAffinityTopologyKey: none
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    volumeSpec:
+      persistentVolumeClaim:
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+    gracePeriod: 60
+  haproxy:
+    enabled: true
+    size: 1
+    image: percona/haproxy:2.8.18-1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    gracePeriod: 30
+  proxysql:
+    enabled: false
+  logcollector:
+    enabled: false
+  pmm:
+    enabled: false
+  backup:
+    image: percona/percona-xtrabackup:8.4.0-5.1
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: payment-pxc-schema-init
+  namespace: compileflow-lab
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: payment-pxc-schema-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mysql-schema
+          image: percona/percona-xtradb-cluster:8.4.8-8.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              until mysql -h payment-pxc-haproxy -uroot -e 'SELECT 1'; do
+                echo '等待 PXC HAProxy 可写...'
+                sleep 5
+              done
+              mysql -h payment-pxc-haproxy -uroot <<'SQL'
+              CREATE DATABASE IF NOT EXISTS payment_lab CHARACTER SET utf8mb4;
+              CREATE TABLE IF NOT EXISTS payment_lab.payment_record (
+                  id BIGINT NOT NULL AUTO_INCREMENT,
+                  payment_id VARCHAR(40) NOT NULL,
+                  order_id VARCHAR(40) NOT NULL,
+                  amount_cents INT NOT NULL,
+                  status VARCHAR(20) NOT NULL,
+                  request_id VARCHAR(80) NULL,
+                  service_instance VARCHAR(100) NULL,
+                  trace_id VARCHAR(160) NULL,
+                  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+                  PRIMARY KEY (id),
+                  UNIQUE KEY uk_payment_order_id (order_id),
+                  UNIQUE KEY uk_payment_id (payment_id)
+              ) ENGINE=InnoDB;
+              SQL
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: payment-pxc-secrets
+                  key: root
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi

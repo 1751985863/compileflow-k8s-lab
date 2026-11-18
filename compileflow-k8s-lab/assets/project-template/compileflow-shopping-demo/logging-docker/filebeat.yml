@@ -1,0 +1,144 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      templates:
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-cluster-lab-shopping-[1-4]-1$'
+          config:
+            - type: filestream
+              id: shopping-cluster-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: shopping-service
+                  instance:
+                    id: "${data.docker.container.name}"
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-cluster-lab-workbench-[1-3]-1$'
+          config:
+            - type: filestream
+              id: workbench-cluster-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: workbench-server
+                  instance:
+                    id: "${data.docker.container.name}"
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-cluster-lab-payment-[1-4]-1$'
+          config:
+            - type: filestream
+              id: payment-cluster-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: payment-service
+                  instance:
+                    id: "${data.docker.container.name}"
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-cluster-lab-gateway-1$'
+          config:
+            - type: filestream
+              id: gateway-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: compileflow-gateway
+                  instance:
+                    id: "${data.docker.container.name}"
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-cluster-lab-eureka-1$'
+          config:
+            - type: filestream
+              id: eureka-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: eureka-server
+                  instance:
+                    id: "${data.docker.container.name}"
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+        - condition:
+            regexp:
+              docker.container.name: '^/?compileflow-workbench-lab-server-[0-9]+$'
+          config:
+            - type: filestream
+              id: workbench-${data.docker.container.id}
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*-json.log
+              parsers:
+                - container:
+                    format: docker
+              fields_under_root: true
+              fields:
+                service:
+                  name: workbench-server
+                container:
+                  id: "${data.docker.container.id}"
+                  name: "${data.docker.container.name}"
+
+filebeat.inputs:
+  - type: filestream
+    id: shopping-application-log
+    paths: ["/lab-logs/shopping*.log"]
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\d{4}-\d{2}-\d{2}T'
+          negate: true
+          match: after
+    fields_under_root: true
+    fields:
+      service:
+        name: shopping-service
+
+output.kafka:
+  hosts: ["kafka:9092"]
+  topic: compileflow-logs
+  required_acks: 1
+  max_message_bytes: 1000000
+logging.metrics.enabled: false

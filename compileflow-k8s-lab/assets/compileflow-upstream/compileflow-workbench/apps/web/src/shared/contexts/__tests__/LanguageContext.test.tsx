@@ -1,0 +1,67 @@
+import { act, render, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { LanguageProvider } from '../LanguageContext'
+
+import i18n from '@/shared/i18n'
+
+describe('LanguageProvider', () => {
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await act(async () => {
+      await i18n.changeLanguage('zh')
+    })
+  })
+
+  it('keeps the app usable when browser storage access is denied', async () => {
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new DOMException('Storage is blocked', 'SecurityError')
+    })
+    await act(async () => {
+      expect(() =>
+        render(
+          <LanguageProvider>
+            <span>content</span>
+          </LanguageProvider>
+        )
+      ).not.toThrow()
+    })
+  })
+
+  it('keeps the document language synchronized with the selected locale', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <span>content</span>
+      </LanguageProvider>
+    )
+
+    await waitFor(() => expect(document.documentElement.lang).toBe('zh-CN'))
+
+    await act(async () => {
+      await i18n.changeLanguage('en')
+    })
+    rerender(
+      <LanguageProvider>
+        <span>content</span>
+      </LanguageProvider>
+    )
+
+    await waitFor(() => expect(document.documentElement.lang).toBe('en'))
+  })
+
+  it('synchronizes language changes from another tab', async () => {
+    render(
+      <LanguageProvider>
+        <span>content</span>
+      </LanguageProvider>
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event('storage'), { key: 'compileflow:language', newValue: 'en' })
+      )
+    })
+
+    await waitFor(() => expect(document.documentElement.lang).toBe('en'))
+  })
+})

@@ -1,0 +1,196 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: compileflow-shopping-demo
+  namespace: compileflow-lab
+spec:
+  selector:
+    app: compileflow-shopping-demo
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compileflow-shopping-demo
+  namespace: compileflow-lab
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: compileflow-shopping-demo
+  template:
+    metadata:
+      labels:
+        app: compileflow-shopping-demo
+    spec:
+      containers:
+        - name: shopping
+          image: compileflow-shopping-demo:cluster
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SERVER_ADDRESS
+              value: 0.0.0.0
+            - name: SERVER_PORT
+              value: "8080"
+            - name: EUREKA_ENABLED
+              value: "true"
+            - name: EUREKA_URL
+              value: http://eureka:8761/eureka/
+            - name: EUREKA_INSTANCE_PREFERIPADDRESS
+              value: "true"
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: INSTANCE_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SHOPPING_FLOW_VERSION
+              value: publish-script-will-replace-this
+            - name: SHOPPING_LOG_FILE
+              value: /tmp/shopping.log
+            - name: ROCKETMQ_ENABLED
+              value: "true"
+            - name: ROCKETMQ_NAMESRV_ADDR
+              value: rocketmq-nameserver:9876
+            - name: ROCKETMQ_PAYMENT_TOPIC
+              value: shopping-payment-requests
+            - name: JAVA_TOOL_OPTIONS
+              value: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+            - name: SW_AGENT_NAME
+              value: shopping-service
+            - name: SW_AGENT_INSTANCE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: skywalking-oap:11800
+            - name: SW_AGENT_SAMPLE
+              value: "-1"
+            - name: SW_LOGGING_OUTPUT
+              value: CONSOLE
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 192Mi
+              cpu: 50m
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compileflow-payment-service
+  namespace: compileflow-lab
+spec:
+  selector:
+    app: compileflow-payment-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compileflow-payment-service
+  namespace: compileflow-lab
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: compileflow-payment-service
+  template:
+    metadata:
+      labels:
+        app: compileflow-payment-service
+    spec:
+      containers:
+        - name: payment
+          image: compileflow-payment-service:cluster
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SERVER_ADDRESS
+              value: 0.0.0.0
+            - name: SERVER_PORT
+              value: "8080"
+            - name: EUREKA_ENABLED
+              value: "true"
+            - name: EUREKA_URL
+              value: http://eureka:8761/eureka/
+            - name: EUREKA_INSTANCE_PREFERIPADDRESS
+              value: "true"
+            - name: ROCKETMQ_ENABLED
+              value: "true"
+            - name: ROCKETMQ_NAMESRV_ADDR
+              value: rocketmq-nameserver:9876
+            - name: ROCKETMQ_PAYMENT_TOPIC
+              value: shopping-payment-requests
+            - name: PAYMENT_DATABASE_ENABLED
+              value: "true"
+            - name: PAYMENT_DB_URL
+              value: jdbc:mysql://payment-pxc-haproxy:3306/payment_lab?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=5000&socketTimeout=10000
+            - name: PAYMENT_DB_USERNAME
+              value: root
+            - name: PAYMENT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: payment-pxc-secrets
+                  key: root
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: INSTANCE_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: JAVA_TOOL_OPTIONS
+              value: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+            - name: SW_AGENT_NAME
+              value: payment-service
+            - name: SW_AGENT_INSTANCE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: skywalking-oap:11800
+            - name: SW_AGENT_SAMPLE
+              value: "-1"
+            - name: SW_LOGGING_OUTPUT
+              value: CONSOLE
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 192Mi
+              cpu: 50m
+            limits:
+              memory: 512Mi

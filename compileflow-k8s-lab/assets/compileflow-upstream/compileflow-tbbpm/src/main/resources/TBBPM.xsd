@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- ========= Simple Types ========= -->
+
+    <xs:simpleType name="ProtocolDuration">
+        <xs:restriction base="xs:duration">
+            <xs:pattern value="P([0-9]+D|([0-9]+D)?T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]{1,3}0{0,6})?S)?|([0-9]+M)([0-9]+(\.[0-9]{1,3}0{0,6})?S)?|[0-9]+(\.[0-9]{1,3}0{0,6})?S))"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NonNegativeDuration">
+        <xs:restriction base="ProtocolDuration">
+            <xs:minInclusive value="PT0S"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="PositiveDuration">
+        <xs:restriction base="ProtocolDuration">
+            <xs:minExclusive value="PT0S"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="MaxAttempts">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:maxInclusive value="100"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="MaxReconcileAttempts">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:maxInclusive value="1000"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="RecoveryDelayDuration">
+        <xs:restriction base="PositiveDuration">
+            <xs:maxInclusive value="P1D"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="MaxRecoveryDuration">
+        <xs:restriction base="PositiveDuration">
+            <xs:maxInclusive value="P30D"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="BackoffMultiplier">
+        <xs:restriction base="xs:double">
+            <xs:minInclusive value="1.0"/>
+            <xs:maxExclusive value="INF"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="RetryJitter">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="none"/>
+            <xs:enumeration value="full"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="SymbolicIdentifier">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="256"/>
+            <xs:pattern value="[a-z][a-z0-9]*(-[a-z0-9]+)*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NonBlankString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:pattern value="[^\s\p{Z}\p{Cc}\p{Cf}]([^\p{Cc}\p{Cf}]*[^\s\p{Z}\p{Cc}\p{Cf}])?"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ExpressionString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:pattern value=".*[^\s\p{Z}].*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NodeIdentifier">
+        <xs:restriction base="NonBlankString">
+            <xs:maxLength value="512"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="EventSelector">
+        <xs:restriction base="NonBlankString">
+            <xs:maxLength value="512"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="VariableDirection">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="inner"/>
+            <xs:enumeration value="param"/>
+            <xs:enumeration value="return"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ActionKind">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="java"/>
+            <xs:enumeration value="spring-bean"/>
+            <xs:enumeration value="script"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ActionExecution">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="replayable"/>
+            <xs:enumeration value="effect"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="EffectRecovery">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="manual"/>
+            <xs:enumeration value="retry"/>
+            <xs:enumeration value="reconcile"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="LoopExecution">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="sequential"/>
+            <xs:enumeration value="parallel"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="LoopIterationLimit">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:maxInclusive value="2147483647"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ========= Shared Elements ========= -->
+
+    <xs:element name="var">
+        <xs:complexType>
+            <xs:attribute name="name" use="required" type="NonBlankString"/>
+            <xs:attribute name="inOutType" type="VariableDirection" use="required"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="defaultValue" type="xs:string"/>
+            <xs:attribute name="dataType" use="required" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="InputType">
+        <xs:attribute name="source" type="ExpressionString"/>
+        <xs:attribute name="target" use="required" type="NonBlankString"/>
+        <xs:attribute name="dataType" use="required" type="NonBlankString"/>
+        <xs:attribute name="defaultValue" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="CallInputType">
+        <xs:attribute name="source" type="ExpressionString"/>
+        <xs:attribute name="target" use="required" type="NonBlankString"/>
+        <xs:attribute name="defaultValue" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="ActionOutputType">
+        <xs:attribute name="target" use="required" type="NonBlankString"/>
+        <xs:attribute name="dataType" use="required" type="NonBlankString"/>
+    </xs:complexType>
+
+    <xs:complexType name="CallOutputType">
+        <xs:attribute name="source" use="required" type="NonBlankString"/>
+        <xs:attribute name="target" use="required" type="NonBlankString"/>
+    </xs:complexType>
+
+    <xs:element name="invocationPolicy">
+        <xs:complexType>
+            <xs:attribute name="timeout" type="PositiveDuration"/>
+            <xs:attribute name="attemptTimeout" type="PositiveDuration"/>
+            <xs:attribute name="maxAttempts" type="MaxAttempts"/>
+            <xs:attribute name="initialBackoff" type="NonNegativeDuration"/>
+            <xs:attribute name="backoffMultiplier" type="BackoffMultiplier"/>
+            <xs:attribute name="maxBackoff" type="NonNegativeDuration"/>
+            <xs:attribute name="jitter" type="RetryJitter"/>
+            <xs:attribute name="retryOn" type="SymbolicIdentifier"/>
+            <xs:attribute name="onFailure" type="SymbolicIdentifier"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="transition">
+        <xs:complexType>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="to" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="xs:string"/>
+            <xs:attribute name="condition" type="ExpressionString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ========= Action & Code ========= -->
+
+    <xs:element name="code">
+        <xs:complexType>
+            <xs:simpleContent>
+                <xs:extension base="xs:string"/>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="ActionType">
+        <xs:sequence>
+            <xs:element name="input" type="InputType" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="output" type="ActionOutputType" minOccurs="0"/>
+            <xs:element ref="code" minOccurs="0"/>
+            <xs:element ref="invocationPolicy" minOccurs="0"/>
+            <xs:element ref="effectPolicy" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="type" type="ActionKind" use="required"/>
+        <xs:attribute name="execution" type="ActionExecution"/>
+        <xs:attribute name="method" type="NonBlankString"/>
+        <xs:attribute name="class" type="NonBlankString"/>
+        <xs:attribute name="bean" type="NonBlankString"/>
+        <xs:attribute name="language" type="SymbolicIdentifier"/>
+    </xs:complexType>
+
+    <xs:element name="action" type="ActionType"/>
+
+    <xs:complexType name="ReconcileActionType">
+        <xs:sequence>
+            <xs:element name="input" type="ReconcileInputType" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="code" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="type" type="ActionKind" use="required"/>
+        <xs:attribute name="method" type="NonBlankString"/>
+        <xs:attribute name="class" type="NonBlankString"/>
+        <xs:attribute name="bean" type="NonBlankString"/>
+        <xs:attribute name="language" type="SymbolicIdentifier"/>
+    </xs:complexType>
+
+    <xs:complexType name="ReconcileInputType">
+        <xs:attribute name="source" use="required" type="NonBlankString"/>
+        <xs:attribute name="target" use="required" type="NonBlankString"/>
+        <xs:attribute name="dataType" use="required" type="NonBlankString"/>
+    </xs:complexType>
+
+    <xs:element name="reconcileAction" type="ReconcileActionType"/>
+
+    <xs:element name="effectPolicy">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="reconcileAction" minOccurs="0"/>
+            </xs:sequence>
+            <xs:attribute name="recovery" type="EffectRecovery"/>
+            <xs:attribute name="recoveryPlanVariable" type="NonBlankString"/>
+            <xs:attribute name="maxAttempts" type="MaxAttempts"/>
+            <xs:attribute name="maxReconcileAttempts" type="MaxReconcileAttempts"/>
+            <xs:attribute name="recoveryDelay" type="RecoveryDelayDuration"/>
+            <xs:attribute name="maxRecoveryDuration" type="MaxRecoveryDuration"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ========= Head / Tail ========= -->
+
+    <xs:element name="start">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="end">
+        <xs:complexType>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ========= Activities / Gateways / Containers ========= -->
+
+    <xs:element name="autoTask">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="transition"/>
+                <xs:element ref="action"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="scriptTask">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="transition"/>
+                <xs:element ref="action"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="exclusive">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="parallel">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="inclusive">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="waitEventTask">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="event" type="EventSelector" use="required"/>
+            <xs:attribute name="timeout" type="NonNegativeDuration"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="waitTask">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="timeout" type="NonNegativeDuration"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="timerTask">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="duration" type="NonNegativeDuration"/>
+            <xs:attribute name="durationExpression" type="xs:string"/>
+            <xs:attribute name="wakeAtExpression" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Executable and routing nodes valid in every TBBPM flow scope. -->
+    <xs:group name="RegularFlowNodeGroup">
+        <xs:choice>
+            <xs:element ref="autoTask"/>
+            <xs:element ref="scriptTask"/>
+            <xs:element ref="exclusive"/>
+            <xs:element ref="parallel"/>
+            <xs:element ref="inclusive"/>
+            <xs:element ref="waitTask"/>
+            <xs:element ref="waitEventTask"/>
+            <xs:element ref="timerTask"/>
+            <xs:element ref="while"/>
+            <xs:element ref="foreach"/>
+            <xs:element ref="subBpm"/>
+            <xs:element ref="bpmCall"/>
+        </xs:choice>
+    </xs:group>
+
+    <xs:group name="StructuredScopeChildGroup">
+        <xs:choice>
+            <xs:element ref="start"/>
+            <xs:element ref="end"/>
+            <xs:element ref="continue"/>
+            <xs:element ref="break"/>
+            <xs:element ref="transition"/>
+            <xs:element ref="note"/>
+            <xs:group ref="RegularFlowNodeGroup"/>
+        </xs:choice>
+    </xs:group>
+
+    <xs:element name="while">
+        <xs:complexType>
+            <xs:group ref="StructuredScopeChildGroup" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="condition" type="ExpressionString" use="required"/>
+            <xs:attribute name="index" type="NonBlankString"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+            <xs:attribute name="maxIterations" type="LoopIterationLimit" use="required"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="foreach">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="output" minOccurs="0" maxOccurs="1">
+                    <xs:complexType>
+                        <xs:attribute name="target" type="NonBlankString" use="required"/>
+                        <xs:attribute name="source" type="NonBlankString" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:group ref="StructuredScopeChildGroup" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="collection" type="NonBlankString" use="required"/>
+            <xs:attribute name="item" type="NonBlankString" use="required"/>
+            <xs:attribute name="itemType" type="NonBlankString" use="required"/>
+            <xs:attribute name="index" type="NonBlankString"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+            <xs:attribute name="execution" type="LoopExecution" default="sequential"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="continue">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+            <xs:attribute name="condition" type="ExpressionString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="break">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="transition" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+            <xs:attribute name="condition" type="ExpressionString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="subBpm">
+        <xs:complexType>
+            <xs:group ref="StructuredScopeChildGroup" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="bpmCall">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="input" type="CallInputType"/>
+                <xs:element name="output" type="CallOutputType"/>
+                <xs:element ref="transition"/>
+            </xs:choice>
+            <xs:attribute name="code" type="NonBlankString" use="required"/>
+            <xs:attribute name="classpath" type="NonBlankString" use="optional"/>
+            <xs:attribute name="version" type="NonBlankString" use="optional"/>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="note">
+        <xs:complexType>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="comment" type="xs:string"/>
+            <xs:attribute name="id" type="NodeIdentifier" use="required"/>
+            <xs:attribute name="g" type="NonBlankString"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ========= Root ========= -->
+
+    <xs:element name="bpm">
+        <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="var"/>
+                <xs:element ref="start"/>
+                <xs:element ref="end"/>
+                <xs:element ref="note"/>
+                <xs:group ref="RegularFlowNodeGroup"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute name="description" type="xs:string"/>
+            <xs:attribute name="code" type="NonBlankString" use="required"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

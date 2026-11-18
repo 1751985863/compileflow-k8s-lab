@@ -1,0 +1,18 @@
+services:
+  headlamp:
+    image: ghcr.io/headlamp-k8s/headlamp:latest
+    container_name: compileflow-k8s-headlamp
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:24466:4466
+    volumes:
+      # 最新镜像默认从这个位置读取配置；只读挂载避免网页修改访问凭据。
+      - ./kubeconfig:/home/headlamp/.kube/config:ro
+    networks:
+      - kind
+
+networks:
+  kind:
+    name: kind
+    external: true
+

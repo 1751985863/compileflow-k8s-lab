@@ -1,0 +1,47 @@
+.bpmn-canvas-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-bg-layout);
+}
+
+/* Node selected state */
+
+.x6-node-selected .bpmn-node svg rect,
+.x6-node-selected .bpmn-node svg circle:first-child,
+.x6-node-selected .bpmn-node svg path:first-child {
+  stroke: var(--color-primary) !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 8px rgba(24, 144, 255, 0.4));
+}
+
+/* Edge styles */
+
+.x6-edge-selected .x6-edge-tool {
+  display: block;
+}
+
+.x6-edge:hover .x6-edge-tool {
+  display: block;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .bpmn-canvas-container {
+    touch-action: none;
+  }
+}
+
+/* Print */
+
+@media print {
+  .bpmn-canvas-container {
+    background-color: white;
+  }
+
+  .x6-graph {
+    page-break-inside: avoid;
+  }
+}

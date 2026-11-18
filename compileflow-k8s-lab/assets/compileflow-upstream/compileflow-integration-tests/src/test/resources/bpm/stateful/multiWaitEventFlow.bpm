@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpm code="bpm.stateful.multiWaitEventFlow" name="多等待事件流程"
+     description="测试多个waitEventTask节点的stateful流程">
+    <var name="orderData" dataType="java.lang.String" inOutType="param"/>
+    <var name="payment_received" dataType="java.lang.String" inOutType="param"/>
+    <var name="delivery_completed" dataType="java.lang.String" inOutType="param"/>
+    <var name="paymentResult" dataType="java.lang.String" inOutType="return"/>
+    <var name="deliveryResult" dataType="java.lang.String" inOutType="return"/>
+    <var name="finalResult" dataType="java.lang.String" inOutType="return"/>
+
+    <start id="start" name="开始" g="100,50,30,30">
+        <transition to="createOrder" g=":-15,20"/>
+    </start>
+
+    <autoTask id="createOrder" name="创建订单" g="80,120,88,48">
+        <transition to="waitPayment" g=":-15,20"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="processOrder">
+                <input target="orderId" dataType="java.lang.String" source="orderData"/>
+                <output dataType="java.lang.String" target="orderData"/>
+
+        </action>
+    </autoTask>
+
+    <waitEventTask id="waitPayment" name="等待支付完成" event="paymentComplete"
+                   g="70,200,120,60">
+        <transition to="waitDelivery" g=":-15,20"/>
+    </waitEventTask>
+
+    <waitEventTask id="waitDelivery" name="等待配送完成" event="deliveryComplete"
+                   g="70,300,120,60">
+        <transition to="completeOrder" g=":-15,20"/>
+    </waitEventTask>
+
+    <autoTask id="completeOrder" name="完成订单" g="80,400,88,48">
+        <transition to="end" g=":-15,20"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="combineResults">
+                <input target="payment" dataType="java.lang.String" source="paymentResult"/>
+                <input target="delivery" dataType="java.lang.String" source="deliveryResult"/>
+                <output dataType="java.lang.String" target="finalResult"/>
+
+        </action>
+    </autoTask>
+
+    <end id="end" name="结束" g="100,480,30,30"/>
+</bpm>
+
+

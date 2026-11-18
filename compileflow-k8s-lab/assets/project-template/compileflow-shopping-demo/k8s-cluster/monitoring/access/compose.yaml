@@ -1,0 +1,24 @@
+services:
+  grafana-access:
+    image: alpine/socat:latest
+    container_name: compileflow-k8s-grafana-access
+    restart: unless-stopped
+    command: ["tcp-listen:3000,fork,reuseaddr", "tcp-connect:compileflow-k8s-control-plane:30300"]
+    ports:
+      - 127.0.0.1:23000:3000
+    networks: [kind]
+
+  prometheus-access:
+    image: alpine/socat:latest
+    container_name: compileflow-k8s-prometheus-access
+    restart: unless-stopped
+    command: ["tcp-listen:9090,fork,reuseaddr", "tcp-connect:compileflow-k8s-control-plane:30909"]
+    ports:
+      - 127.0.0.1:29090:9090
+    networks: [kind]
+
+networks:
+  kind:
+    name: kind
+    external: true
+

@@ -1,0 +1,7 @@
+interface:
+  display_name: "CompileFlow K8s 实验复刻"
+  short_description: "在新电脑复刻完整 CompileFlow 微服务与 K8s 实验环境"
+  default_prompt: "使用 $compileflow-k8s-lab 在这台电脑上检查环境并复刻完整实验集群。"
+policy:
+  allow_implicit_invocation: true
+

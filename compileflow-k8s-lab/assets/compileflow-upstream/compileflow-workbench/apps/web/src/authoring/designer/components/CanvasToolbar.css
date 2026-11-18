@@ -1,0 +1,184 @@
+.x6-canvas-toolbar {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent),
+    color-mix(in srgb, var(--bg-toolbar, var(--color-bg-container)) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+}
+
+.x6-canvas-toolbar .ant-btn {
+  color: var(--color-text-secondary);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.x6-canvas-toolbar .ant-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.x6-canvas-toolbar .ant-btn:active {
+  background: var(--color-primary-border);
+}
+
+.x6-canvas-toolbar .ant-divider-vertical {
+  height: 20px;
+  margin: 0 var(--spacing-2);
+  background: var(--color-border-light);
+}
+
+.canvas-toolbar-menu {
+  max-height: calc(50dvh - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Tool group visual container — subtle background */
+.x6-canvas-toolbar .ant-space {
+  padding: 2px 4px;
+  border-radius: var(--radius-md);
+}
+
+/* Keyboard shortcut tag in tooltips */
+.x6-toolbar-shortcut {
+  display: inline-block;
+  padding: 0 4px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-family: var(--font-family-code);
+  color: var(--color-text-tertiary);
+  background: var(--color-fill-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  line-height: 18px;
+}
+
+.available-node {
+  filter: drop-shadow(0 0 4px var(--color-primary));
+}
+
+.available-magnet {
+  visibility: visible !important;
+  fill: var(--color-success) !important;
+  stroke: var(--color-success) !important;
+  r: 8 !important;
+}
+
+.adsorbed-magnet {
+  visibility: visible !important;
+  fill: var(--color-primary) !important;
+  stroke: var(--color-primary) !important;
+  stroke-width: 3 !important;
+  r: 10 !important;
+}
+
+.x6-port {
+  visibility: hidden;
+}
+
+.x6-node:hover .x6-port,
+.x6-node-selected .x6-port {
+  visibility: visible;
+}
+
+.x6-port circle {
+  fill: var(--color-bg-container);
+  stroke: var(--info-main);
+  stroke-width: 2;
+  r: 6;
+}
+
+.x6-port:hover circle {
+  fill: var(--info-main);
+  stroke-width: 3;
+  r: 8;
+}
+
+[data-theme='dark'] .x6-port circle {
+  fill: var(--color-bg-base);
+  stroke: var(--info-light);
+}
+
+[data-theme='dark'] .x6-port:hover circle {
+  fill: var(--info-light);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .x6-node-selected .x6-port circle {
+    r: 12;
+    stroke-width: 3;
+  }
+}
+
+.x6-canvas-toolbar-compact {
+  padding: var(--spacing-1) var(--spacing-2);
+}
+
+.x6-canvas-toolbar-compact .ant-btn {
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+.x6-canvas-toolbar-compact .ant-space {
+  gap: 0 !important;
+  padding: 0;
+}
+
+.x6-canvas-toolbar-compact .ant-divider-vertical {
+  margin: 0 4px;
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .x6-canvas-toolbar {
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+}
+
+.x6-edge-label-editor {
+  font-family: var(--font-family-base);
+}
+
+.x6-widget-selection-box {
+  border: 2px dashed var(--color-primary) !important;
+  background: transparent !important;
+}
+
+.x6-widget-selection-inner {
+  border: 2px solid var(--color-primary) !important;
+  background: rgba(24, 144, 255, 0.05) !important;
+}
+
+.x6-widget-transform-resize {
+  border: 2px solid var(--color-bg-container) !important;
+  background: var(--color-primary) !important;
+  border-radius: var(--radius-full) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .x6-canvas-toolbar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--bg-toolbar, var(--color-bg-container));
+  border-bottom-color: rgba(148, 163, 184, 0.12);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+[data-theme='dark'] .x6-canvas-toolbar .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .x6-canvas-toolbar .ant-btn {
+    transition: none;
+  }
+}

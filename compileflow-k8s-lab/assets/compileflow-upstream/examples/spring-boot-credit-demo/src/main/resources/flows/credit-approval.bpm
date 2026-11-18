@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 这是流程本身。流程顺序和条件从 Java 代码移到了 XML 定义中。 -->
+<bpm code="demo.credit.approval" name="Credit approval" description="用信审批示例">
+    <var name="userId" dataType="java.lang.String" inOutType="param"/>
+    <var name="amount" dataType="java.lang.Integer" inOutType="param"/>
+    <var name="needRisk" dataType="java.lang.Boolean" inOutType="param"/>
+    <var name="result" dataType="java.lang.String" defaultValue="PENDING" inOutType="return"/>
+
+    <start id="start" name="收到用信申请">
+        <transition to="validateUser"/>
+    </start>
+    <autoTask id="validateUser" name="用户校验">
+        <action type="spring-bean" bean="creditOperations"
+                class="com.example.compileflow.credit.CreditOperations" method="validateUser">
+            <input target="userId" dataType="java.lang.String" source="userId"/>
+        </action>
+        <transition to="riskDecision"/>
+    </autoTask>
+    <exclusive id="riskDecision" name="是否需要风控">
+        <transition name="需要风控" to="pushRisk" condition="needRisk"/>
+        <transition name="无需风控" to="signContract"/>
+    </exclusive>
+    <autoTask id="pushRisk" name="风控推送">
+        <action type="spring-bean" bean="creditOperations"
+                class="com.example.compileflow.credit.CreditOperations" method="pushRisk">
+            <input target="userId" dataType="java.lang.String" source="userId"/>
+            <input target="amount" dataType="java.lang.Integer" source="amount"/>
+        </action>
+        <transition to="signContract"/>
+    </autoTask>
+    <autoTask id="signContract" name="合同签订">
+        <action type="spring-bean" bean="creditOperations"
+                class="com.example.compileflow.credit.CreditOperations" method="signContract">
+            <input target="userId" dataType="java.lang.String" source="userId"/>
+            <input target="amount" dataType="java.lang.Integer" source="amount"/>
+        </action>
+        <transition to="finish"/>
+    </autoTask>
+    <scriptTask id="finish" name="生成审批结果">
+        <action type="script" language="java">
+            <output dataType="java.lang.String" target="result"/>
+            <code>return "APPROVED";</code>
+        </action>
+        <transition to="end"/>
+    </scriptTask>
+    <end id="end" name="结束"/>
+</bpm>

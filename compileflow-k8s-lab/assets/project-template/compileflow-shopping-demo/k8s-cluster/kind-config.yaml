@@ -1,0 +1,24 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: compileflow-k8s
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 28080
+        protocol: TCP
+      - containerPort: 30090
+        hostPort: 28090
+        protocol: TCP
+      - containerPort: 30761
+        hostPort: 28761
+        protocol: TCP
+      - containerPort: 30800
+        hostPort: 22800
+        protocol: TCP
+      - containerPort: 30801
+        hostPort: 21800
+        protocol: TCP
+      - containerPort: 30601
+        hostPort: 25601
+        protocol: TCP

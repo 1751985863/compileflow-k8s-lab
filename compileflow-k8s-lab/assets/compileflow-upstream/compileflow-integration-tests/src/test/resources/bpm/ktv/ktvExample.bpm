@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<bpm code="bpm.ktv.ktvExample" name="ktv example" description="ktv example">
+    <var name="price" dataType="java.lang.Integer" inOutType="return"/>
+    <var name="totalPrice" description="Actual Price" dataType="java.lang.Integer" inOutType="inner"/>
+    <var name="pList" dataType="java.util.List&lt;java.lang.String&gt;" inOutType="param"/>
+    <end id="11" name="End" g="101,549,30,30"/>
+    <autoTask id="12" name="Payment" g="72,469,88,48">
+        <transition g=":-15,20" to="11"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.KtvService" method="payMoney">
+                <input target="p1" dataType="java.lang.Integer" source="price"/>
+
+        </action>
+    </autoTask>
+    <scriptTask id="9" name="Original Price" g="132,389,88,48">
+        <transition g=":-15,20" to="12"/>
+        <action type="script" language="qlexpress">
+                <input target="price" dataType="java.lang.Integer" source="totalPrice"/>
+                <output dataType="java.lang.Integer" target="price"/>
+                <code><![CDATA[price*1]]></code>
+
+        </action>
+    </scriptTask>
+    <foreach id="13" name="Loop Node" g="20,75,198,190"
+                 collection="pList" item="p" index="i"
+                 itemType="java.lang.String">
+        <transition g=":-15,20" to="calculateFee"/>
+        <start id="13-start"><transition to="13-1"/></start>
+        <autoTask id="13-1" name="Everyone Sings a Song" g="70,95,88,48">
+            <action type="spring-bean" bean="ktvService" class="com.alibaba.compileflow.engine.test.support.mocks.KtvService"
+                              method="sing">
+                    <input target="p1" dataType="java.lang.String" source="p"/>
+
+            </action>
+            <transition to="13-end"/>
+        </autoTask>
+        <end id="13-end"/>
+    </foreach>
+    <autoTask id="calculateFee" name="Calculate Fee" g="72,280,88,48">
+        <transition to="8"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="calculatePrice">
+                <input target="p1" dataType="java.lang.Integer" source="pList.size()"/>
+                <output dataType="java.lang.Integer" target="totalPrice"/>
+
+        </action>
+    </autoTask>
+    <exclusive id="8" name="Calculate Fee" g="72,309,88,48">
+        <transition name="Not Over 400" g=":-15,20" to="9"/>
+        <transition condition="totalPrice&gt;=400" name="Over 400" g=":-15,20" to="10"/>
+    </exclusive>
+    <start id="1" name="Start" g="105,17,30,30">
+        <transition g=":-15,20" to="13"/>
+    </start>
+    <note id="14" g="273,82,93,55" comment="The outer frame is a loop node"/>
+    <scriptTask id="10" name="10% Off Discount" g="12,389,88,48">
+        <transition g=":-15,20" to="12"/>
+        <action type="script" language="qlexpress">
+                <input target="price" dataType="java.lang.Integer" source="totalPrice"/>
+                <output dataType="java.lang.Integer" target="price"/>
+                <code><![CDATA[(int)(price*0.9)]]></code>
+
+        </action>
+    </scriptTask>
+</bpm>

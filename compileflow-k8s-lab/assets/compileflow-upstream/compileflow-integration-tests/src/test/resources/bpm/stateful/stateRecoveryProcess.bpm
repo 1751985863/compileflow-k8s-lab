@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpm code="bpm.stateful.stateRecoveryProcess" name="状态恢复流程"
+     description="测试状态恢复的stateful流程">
+    <var name="processId" dataType="java.lang.String" inOutType="param"/>
+    <var name="error_condition" dataType="java.lang.Boolean" inOutType="param"/>
+    <var name="recovery_data" dataType="java.lang.String" inOutType="param"/>
+    <var name="errorHandled" dataType="java.lang.String" inOutType="return"/>
+    <var name="recoveredState" dataType="java.lang.String" inOutType="return"/>
+
+    <start id="start" name="开始" g="100,50,30,30">
+        <transition to="initializeRecoveryProcess" g=":-15,20"/>
+    </start>
+
+    <autoTask id="initializeRecoveryProcess" name="初始化恢复流程" g="80,120,88,48">
+        <transition to="waitErrorCondition" g=":-15,20"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="processTask">
+                <input target="task" dataType="java.lang.String" source="processId"/>
+                <output dataType="java.lang.String" target="processId"/>
+
+        </action>
+    </autoTask>
+
+    <waitEventTask id="waitErrorCondition" name="等待错误条件" event="errorOccurred"
+                   g="70,200,120,60">
+        <transition to="handleError" g=":-15,20"/>
+    </waitEventTask>
+
+    <autoTask id="handleError" name="处理错误" g="80,300,88,48">
+        <transition to="waitRecovery" g=":-15,20"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="combineResults">
+                <input target="payment" dataType="java.lang.String" source="processId"/>
+                <input target="delivery" dataType="java.lang.String" source="errorHandled"/>
+                <output dataType="java.lang.String" target="errorHandled"/>
+
+        </action>
+    </autoTask>
+
+    <waitEventTask id="waitRecovery" name="等待恢复" event="recoveryComplete" g="70,400,120,60">
+        <transition to="processRecovery" g=":-15,20"/>
+    </waitEventTask>
+
+    <autoTask id="processRecovery" name="处理恢复" g="80,500,88,48">
+        <transition to="end" g=":-15,20"/>
+        <action type="java" class="com.alibaba.compileflow.engine.test.support.mocks.MockJavaService"
+                          method="combineResults">
+                <input target="payment" dataType="java.lang.String" source="errorHandled"/>
+                <input target="delivery" dataType="java.lang.String" source="recoveredState"/>
+                <output dataType="java.lang.String" target="recoveredState"/>
+
+        </action>
+    </autoTask>
+
+    <end id="end" name="结束" g="100,600,30,30"/>
+</bpm>
+

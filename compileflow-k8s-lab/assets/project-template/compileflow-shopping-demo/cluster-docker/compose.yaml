@@ -1,0 +1,321 @@
+name: compileflow-cluster-lab
+
+x-workbench-common: &workbench-common
+  image: compileflow-workbench-server:eureka-2.0.0
+  build:
+    context: .
+    dockerfile: Dockerfile.workbench
+  restart: unless-stopped
+  command: ["--eureka.client.serviceUrl.defaultZone=http://eureka:8761/eureka/"]
+  environment: &workbench-environment
+    SPRING_PROFILES_ACTIVE: dev
+    SPRING_APPLICATION_NAME: compileflow-workbench-server
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/compileflow
+    SPRING_DATASOURCE_USERNAME: compileflow
+    SPRING_DATASOURCE_PASSWORD: ${WORKBENCH_DB_PASSWORD:?Use --env-file with workbench-docker/.env}
+    EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
+    EUREKA_INSTANCE_PREFERIPADDRESS: "false"
+    EUREKA_INSTANCE_LEASERENEWALINTERVALINSECONDS: 5
+    EUREKA_INSTANCE_LEASEEXPIRATIONDURATIONINSECONDS: 15
+    JAVA_TOOL_OPTIONS: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms128m -Xmx512m -Dfile.encoding=UTF-8
+    SW_AGENT_NAME: workbench-server
+    SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+    SW_AGENT_SAMPLE: "-1"
+    SW_LOGGING_OUTPUT: CONSOLE
+  depends_on:
+    postgres:
+      condition: service_healthy
+    eureka:
+      condition: service_healthy
+  stop_grace_period: 75s
+  healthcheck:
+    test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+    interval: 15s
+    timeout: 5s
+    start_period: 45s
+    retries: 8
+  labels:
+    lab.logs: workbench-server
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+x-shopping-common: &shopping-common
+  image: compileflow-shopping-demo:cluster
+  build:
+    context: ..
+  restart: unless-stopped
+  environment: &shopping-environment
+    SERVER_ADDRESS: 0.0.0.0
+    SERVER_PORT: 8080
+    EUREKA_ENABLED: "true"
+    EUREKA_URL: http://eureka:8761/eureka/
+    SHOPPING_FLOW_VERSION: ${SHOPPING_FLOW_VERSION:-r-e5543942149a547974de90018b4bfe7d}
+    SHOPPING_LOG_FILE: /tmp/shopping.log
+    JAVA_TOOL_OPTIONS: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+    SW_AGENT_NAME: shopping-service
+    SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+    SW_AGENT_SAMPLE: "-1"
+    SW_LOGGING_OUTPUT: CONSOLE
+  depends_on:
+    eureka:
+      condition: service_healthy
+    gateway:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+    interval: 12s
+    timeout: 5s
+    start_period: 25s
+    retries: 8
+  labels:
+    lab.logs: shopping-service
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+x-payment-common: &payment-common
+  image: compileflow-payment-service:cluster
+  build:
+    context: ../../compileflow-payment-service
+  restart: unless-stopped
+  environment: &payment-environment
+    SERVER_ADDRESS: 0.0.0.0
+    SERVER_PORT: 8080
+    EUREKA_ENABLED: "true"
+    EUREKA_URL: http://eureka:8761/eureka/
+    JAVA_TOOL_OPTIONS: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+    SW_AGENT_NAME: payment-service
+    SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+    SW_AGENT_SAMPLE: "-1"
+    SW_LOGGING_OUTPUT: CONSOLE
+  depends_on:
+    eureka:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+    interval: 12s
+    timeout: 5s
+    start_period: 25s
+    retries: 8
+  labels:
+    lab.logs: payment-service
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  skywalking-oap:
+    image: apache/skywalking-oap-server:10.4.0-java17
+    restart: unless-stopped
+    environment:
+      SW_STORAGE: elasticsearch
+      SW_STORAGE_ES_CLUSTER_NODES: elasticsearch:9200
+      JAVA_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "127.0.0.1:12800:12800"
+    networks:
+      - default
+      - logging
+
+  skywalking-ui:
+    image: apache/skywalking-ui:10.4.0-java17
+    restart: unless-stopped
+    environment:
+      SW_OAP_ADDRESS: http://skywalking-oap:12800
+    ports:
+      - "127.0.0.1:18090:8080"
+    depends_on:
+      - skywalking-oap
+
+  postgres:
+    image: postgres:18.6-alpine3.24@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: compileflow
+      POSTGRES_USER: compileflow
+      POSTGRES_PASSWORD: ${WORKBENCH_DB_PASSWORD:?Use --env-file with workbench-docker/.env}
+    volumes:
+      - workbench-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U compileflow -d compileflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  eureka:
+    image: compileflow-eureka-server:cluster
+    build:
+      context: ../../compileflow-eureka-server
+    restart: unless-stopped
+    hostname: eureka
+    environment:
+      SERVER_PORT: 8761
+      EUREKA_HOSTNAME: eureka
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+    ports:
+      - "127.0.0.1:18761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8761/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      start_period: 25s
+      retries: 10
+    labels:
+      lab.logs: eureka-server
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  gateway:
+    image: compileflow-cluster-gateway:cluster
+    build:
+      context: ../../compileflow-cluster-gateway
+    restart: unless-stopped
+    hostname: gateway
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://eureka:8761/eureka/
+      INSTANCE_ID: gateway-1
+      INSTANCE_HOSTNAME: gateway
+      JAVA_TOOL_OPTIONS: -javaagent:/skywalking/agent/skywalking-agent.jar -Xms64m -Xmx256m -Dfile.encoding=UTF-8
+      SW_AGENT_NAME: compileflow-gateway
+      SW_AGENT_INSTANCE_NAME: gateway-1
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_SAMPLE: "-1"
+      SW_LOGGING_OUTPUT: CONSOLE
+    ports:
+      - "127.0.0.1:18080:8080"
+    depends_on:
+      eureka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      start_period: 25s
+      retries: 10
+    labels:
+      lab.logs: cluster-gateway
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  workbench-1:
+    <<: *workbench-common
+    hostname: workbench-1
+    environment:
+      <<: *workbench-environment
+      EUREKA_INSTANCE_INSTANCEID: workbench-1
+      EUREKA_INSTANCE_HOSTNAME: workbench-1
+      SW_AGENT_INSTANCE_NAME: workbench-1
+
+  workbench-2:
+    <<: *workbench-common
+    hostname: workbench-2
+    environment:
+      <<: *workbench-environment
+      EUREKA_INSTANCE_INSTANCEID: workbench-2
+      EUREKA_INSTANCE_HOSTNAME: workbench-2
+      SW_AGENT_INSTANCE_NAME: workbench-2
+
+  workbench-3:
+    <<: *workbench-common
+    hostname: workbench-3
+    environment:
+      <<: *workbench-environment
+      EUREKA_INSTANCE_INSTANCEID: workbench-3
+      EUREKA_INSTANCE_HOSTNAME: workbench-3
+      SW_AGENT_INSTANCE_NAME: workbench-3
+
+  shopping-1:
+    <<: *shopping-common
+    hostname: shopping-1
+    environment:
+      <<: *shopping-environment
+      INSTANCE_ID: shopping-1
+      INSTANCE_HOSTNAME: shopping-1
+      SW_AGENT_INSTANCE_NAME: shopping-1
+
+  shopping-2:
+    <<: *shopping-common
+    hostname: shopping-2
+    environment:
+      <<: *shopping-environment
+      INSTANCE_ID: shopping-2
+      INSTANCE_HOSTNAME: shopping-2
+      SW_AGENT_INSTANCE_NAME: shopping-2
+
+  shopping-3:
+    <<: *shopping-common
+    hostname: shopping-3
+    environment:
+      <<: *shopping-environment
+      INSTANCE_ID: shopping-3
+      INSTANCE_HOSTNAME: shopping-3
+      SW_AGENT_INSTANCE_NAME: shopping-3
+
+  shopping-4:
+    <<: *shopping-common
+    hostname: shopping-4
+    environment:
+      <<: *shopping-environment
+      INSTANCE_ID: shopping-4
+      INSTANCE_HOSTNAME: shopping-4
+      SW_AGENT_INSTANCE_NAME: shopping-4
+
+  payment-1:
+    <<: *payment-common
+    hostname: payment-1
+    environment:
+      <<: *payment-environment
+      INSTANCE_ID: payment-1
+      INSTANCE_HOSTNAME: payment-1
+      SW_AGENT_INSTANCE_NAME: payment-1
+
+  payment-2:
+    <<: *payment-common
+    hostname: payment-2
+    environment:
+      <<: *payment-environment
+      INSTANCE_ID: payment-2
+      INSTANCE_HOSTNAME: payment-2
+      SW_AGENT_INSTANCE_NAME: payment-2
+
+  payment-3:
+    <<: *payment-common
+    hostname: payment-3
+    environment:
+      <<: *payment-environment
+      INSTANCE_ID: payment-3
+      INSTANCE_HOSTNAME: payment-3
+      SW_AGENT_INSTANCE_NAME: payment-3
+
+  payment-4:
+    <<: *payment-common
+    hostname: payment-4
+    environment:
+      <<: *payment-environment
+      INSTANCE_ID: payment-4
+      INSTANCE_HOSTNAME: payment-4
+      SW_AGENT_INSTANCE_NAME: payment-4
+
+volumes:
+  workbench-data:
+    external: true
+    name: compileflow-workbench-lab_workbench-data
+
+networks:
+  logging:
+    external: true
+    name: compileflow-logging-lab_default

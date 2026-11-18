@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-shopping-script
+  namespace: compileflow-lab
+data:
+  checkout.js: |
+    import http from 'k6/http';
+    import { check } from 'k6';
+
+    const rate = Number(__ENV.RATE || 500);
+    const duration = __ENV.DURATION || '5s';
+    const preAllocatedVUs = Number(__ENV.PRE_ALLOCATED_VUS || 1500);
+    const maxVUs = Number(__ENV.MAX_VUS || 3000);
+    const targetUrl = __ENV.TARGET_URL ||
+      'http://nginx-entry.compileflow-lab.svc.cluster.local:8080/api/checkout';
+
+    export const options = {
+      tags: { testid: __ENV.TEST_ID || 'manual' },
+      discardResponseBodies: false,
+      scenarios: {
+        checkout: {
+          executor: 'constant-arrival-rate',
+          rate,
+          timeUnit: '1s',
+          duration,
+          preAllocatedVUs,
+          maxVUs,
+        },
+      },
+      thresholds: {
+        'http_req_failed{phase:load}': ['rate<0.01'],
+        'http_req_duration{phase:load}': ['p(95)<2000'],
+        'checks{phase:load}': ['rate>0.99'],
+        dropped_iterations: ['count==0'],
+      },
+    };
+
+    function checkout(requestId, phase) {
+      return http.post(
+        targetUrl,
+        JSON.stringify({ sku: 'BOOK', quantity: 1 }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-Id': requestId,
+          },
+          tags: { endpoint: 'checkout', phase },
+        }
+      );
+    }
+
+    // CompileFlow 第一次执行会动态编译流程。正式计时前发送一组预热请求，
+    // 尽量覆盖 4 个购物实例和 3 个 Workbench 实例，避免把冷启动当作稳定态性能。
+    export function setup() {
+      for (let i = 0; i < 20; i += 1) {
+        checkout(`k6-warmup-${i}-${Date.now()}`, 'warmup');
+      }
+    }
+
+    export default function () {
+      const requestId = `k6-${__VU}-${__ITER}-${Date.now()}`;
+      const response = checkout(requestId, 'load');
+
+      check(response, {
+        'HTTP 状态为 200': (r) => r.status === 200,
+        '支付状态为 PAID': (r) => {
+          try {
+            return r.json('paymentStatus') === 'PAID';
+          } catch (_) {
+            return false;
+          }
+        },
+        '返回购物和支付实例': (r) => {
+          try {
+            return Boolean(r.json('serviceInstance')) && Boolean(r.json('paymentInstance'));
+          } catch (_) {
+            return false;
+          }
+        },
+      }, { phase: 'load' });
+    }
+

@@ -1,0 +1,36 @@
+{
+  "name": "@compileflow/workbench-dev-gateway",
+  "version": "2.0.0-SNAPSHOT",
+  "private": true,
+  "type": "module",
+  "description": "Loopback-only mock execution gateway for Workbench development",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "pnpm run clean && tsc",
+    "start": "node dist/server.js",
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest --run",
+    "clean": "node -e \"const fs=require('node:fs'); ['dist','coverage'].forEach(path=>fs.rmSync(path,{recursive:true,force:true}))\""
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/express": "^4.17.25",
+    "@types/node": "^24.13.3",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  }
+}

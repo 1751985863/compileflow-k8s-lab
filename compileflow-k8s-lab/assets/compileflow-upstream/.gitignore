@@ -1,0 +1,94 @@
+# Project-local build and runtime state
+.m2/
+target/
+*.class
+*.pid
+
+# Maven release metadata
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# JVM crash and diagnostic dumps
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# pnpm, Vite, and test output
+node_modules/
+.pnpm-store/
+dist/
+.vite/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+/compileflow-workbench/package-lock.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local environment files
+.env*
+!.env.example
+!.env.template
+!/compileflow-workbench/apps/web/.env.development
+
+# Python tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.venv/
+
+# IDEs and editors
+.idea/
+.idea_modules/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.pydevproject
+.classpath
+.project
+.settings/
+.metadata/
+.factorypath
+.loadpath
+.externalToolBuilders/
+*.launch
+.cproject
+.buildpath
+.target
+.texlipse
+out/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.apdisk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

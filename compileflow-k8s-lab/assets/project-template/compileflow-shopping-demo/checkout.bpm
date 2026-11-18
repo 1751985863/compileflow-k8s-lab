@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpm code="demo.shopping.checkout" name="购物结算">
+    <var name="subtotalCents" dataType="java.lang.Integer" inOutType="param"/>
+    <var name="discountCents" dataType="java.lang.Integer" inOutType="return"/>
+    <var name="payableCents" dataType="java.lang.Integer" inOutType="return"/>
+    <start id="start" name="收到小计" g="40,160,32,32">
+        <transition to="decision"/>
+    </start>
+    <exclusive id="decision" name="是否满 100 元？" g="180,150,64,64">
+        <transition to="discount" name="满 100 元" condition="subtotalCents >= 10000"/>
+        <transition to="regular" name="不足 100 元"/>
+    </exclusive>
+    <scriptTask id="discount" name="立减 10 元" g="360,60,140,48">
+        <action type="script" language="java">
+            <output dataType="java.lang.Integer" target="discountCents"/>
+            <code>return 1000;</code>
+        </action>
+        <transition to="merge"/>
+    </scriptTask>
+    <scriptTask id="regular" name="原价结算" g="360,240,140,48">
+        <action type="script" language="java">
+            <output dataType="java.lang.Integer" target="discountCents"/>
+            <code>return 0;</code>
+        </action>
+        <transition to="merge"/>
+    </scriptTask>
+    <exclusive id="merge" name="汇合" g="600,150,64,64">
+        <transition to="total"/>
+    </exclusive>
+    <scriptTask id="total" name="计算应付金额" g="720,158,140,48">
+        <action type="script" language="java">
+            <input target="subtotalCents" dataType="java.lang.Integer" source="subtotalCents"/>
+            <input target="discountCents" dataType="java.lang.Integer" source="discountCents"/>
+            <output dataType="java.lang.Integer" target="payableCents"/>
+            <code>return subtotalCents - discountCents;</code>
+        </action>
+        <transition to="end"/>
+    </scriptTask>
+    <end id="end" name="返回应付金额" g="930,160,32,32"/>
+</bpm>

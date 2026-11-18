@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace-data.yaml
+  - skywalking.yaml
+  - platform.yaml
+  - business.yaml
+  - edge.yaml
+  - rocketmq.yaml
+  - pxc.yaml
+  - logging/logging.yaml

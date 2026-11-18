@@ -1,0 +1,53 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:18085}
+
+spring:
+  application:
+    name: compileflow-shopping-demo
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 3000
+            read-timeout: 15000
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    instance-id: ${INSTANCE_ID:${spring.application.name}:${server.port}}
+    hostname: ${INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  file:
+    name: ${SHOPPING_LOG_FILE:compileflow-shopping-demo/logging-docker/logs/shopping.log}
+  level:
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level service=${spring.application.name} instance=${INSTANCE_ID:local} requestId=%X{requestId:-} %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level service=${spring.application.name} instance=${INSTANCE_ID:local} requestId=%X{requestId:-} %logger{36} - %msg%n"
+
+shopping:
+  flow-version: ${SHOPPING_FLOW_VERSION:r-e5543942149a547974de90018b4bfe7d}
+
+rocketmq:
+  enabled: ${ROCKETMQ_ENABLED:false}
+  name-server: ${ROCKETMQ_NAMESRV_ADDR:localhost:9876}
+  payment-topic: ${ROCKETMQ_PAYMENT_TOPIC:shopping-payment-requests}

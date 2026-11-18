@@ -1,0 +1,71 @@
+server:
+  port: ${SERVER_PORT:18080}
+
+spring:
+  application:
+    name: compileflow-cluster-gateway
+  data:
+    redis:
+      cluster:
+        nodes:
+          - ${REDIS_NODE_0:redis-cluster-0.redis-cluster:6379}
+          - ${REDIS_NODE_1:redis-cluster-1.redis-cluster:6379}
+          - ${REDIS_NODE_2:redis-cluster-2.redis-cluster:6379}
+          - ${REDIS_NODE_3:redis-cluster-3.redis-cluster:6379}
+          - ${REDIS_NODE_4:redis-cluster-4.redis-cluster:6379}
+          - ${REDIS_NODE_5:redis-cluster-5.redis-cluster:6379}
+        max-redirects: 5
+      connect-timeout: 2s
+      timeout: 2s
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: shopping-service
+              uri: lb://compileflow-shopping-demo
+              predicates:
+                - Path=/api/checkout/**
+              filters: &redis-rate-limit
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_REPLENISH_RATE:200}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_BURST_CAPACITY:400}
+                    redis-rate-limiter.requestedTokens: 1
+            - id: payment-service
+              uri: lb://compileflow-payment-service
+              predicates:
+                - Path=/api/payments/**
+              filters: *redis-rate-limit
+            - id: workbench-server
+              uri: lb://compileflow-workbench-server
+              predicates:
+                - Path=/api/**
+              filters: *redis-rate-limit
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: 5
+  instance:
+    instance-id: ${INSTANCE_ID:${spring.application.name}:${server.port}}
+    hostname: ${INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level service=${spring.application.name} instance=${INSTANCE_ID:local} %logger{36} - %msg%n"

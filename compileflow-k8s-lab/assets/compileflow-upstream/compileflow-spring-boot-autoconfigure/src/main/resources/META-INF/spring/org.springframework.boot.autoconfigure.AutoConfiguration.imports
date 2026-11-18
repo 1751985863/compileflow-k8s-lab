@@ -1,0 +1,4 @@
+com.alibaba.compileflow.engine.spring.boot.autoconfigure.CompileFlowEnginePropertiesAutoConfiguration
+com.alibaba.compileflow.engine.spring.boot.autoconfigure.CompileFlowContextPropagationAutoConfiguration
+com.alibaba.compileflow.engine.spring.boot.autoconfigure.CompileFlowEngineAutoConfiguration
+com.alibaba.compileflow.engine.spring.boot.autoconfigure.CompileFlowEngineMetricsAutoConfiguration

@@ -1,0 +1,121 @@
+name: Release with Artifact Attestations
+
+# Verifies one tagged commit, delegates the build and provenance generation to
+# a trusted reusable workflow, then publishes exactly those attested artifacts.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  engine-candidate-evidence:
+    name: Verify same-commit Engine candidate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/integration-tests.yml
+
+  durable-candidate-evidence:
+    name: Verify same-commit Durable candidate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/durable-ci.yml
+
+  workbench-server-candidate-evidence:
+    name: Verify same-commit Workbench Server candidate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/workbench-server-ci.yml
+
+  workbench-delivery-candidate-evidence:
+    name: Verify same-commit Workbench delivery candidate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/workbench-ci.yml
+
+  java-security-candidate-evidence:
+    name: Verify same-commit Java dependency security
+    permissions:
+      contents: read
+    uses: ./.github/workflows/java-security.yml
+    secrets:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+  build:
+    name: Build and attest release candidate
+    needs:
+      - engine-candidate-evidence
+      - durable-candidate-evidence
+      - workbench-server-candidate-evidence
+      - workbench-delivery-candidate-evidence
+      - java-security-candidate-evidence
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/release-build.yml
+
+  release:
+    name: Publish GitHub Release
+    needs: [ build ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: release-artifacts
+          path: staging
+
+      - name: Publish complete GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
+        with:
+          generate_release_notes: true
+          files: staging/*
+          body: |
+            # CompileFlow ${{ github.ref_name }}
+
+            See `CHANGELOG.md` for the full list of changes.
+
+            ## Verification
+
+            `compileflow-workbench-all-in-one-*.jar` is the bundled Workbench
+            distribution: one Java process serving both the SPA and API. The
+            separate `compileflow-workbench-server-*.jar` remains available for
+            split deployment.
+
+            CompileFlow Durable is released as an opt-in, embeddable persisted
+            execution kernel. Its application API is Supported and its application
+            capability/integration SPI is Provider Preview. The
+            runtime, first-party PostgreSQL and MySQL implementations, Spring
+            Boot integration, and Kernel Store contract testkit are included. Platform control planes, server distributions,
+            Kubernetes resources, and cloud-specific adapters are intentionally
+            outside this release boundary.
+
+            The JARs, deterministic source archive, Maven
+            `compileflow-bom.json`, and Workbench
+            `compileflow-workbench-web-bom.json` are covered by the published
+            checksum manifest and GitHub artifact attestations. To verify an
+            artifact against the trusted reusable build workflow, install the
+            [GitHub CLI](https://cli.github.com/) and run:
+
+            ```
+            gh attestation verify \
+                --repo alibaba/compileflow \
+                --signer-workflow alibaba/compileflow/.github/workflows/release-build.yml \
+                <artifact>
+            ```
+
+            See `docs/en/compatibility-policy.md` for version support and
+            `docs/en/architecture/supported-surfaces.md` for product boundaries.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

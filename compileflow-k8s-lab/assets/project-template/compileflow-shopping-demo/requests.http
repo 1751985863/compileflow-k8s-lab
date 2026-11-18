@@ -1,0 +1,37 @@
+### 满 100 元减 10 元，12000 - 1000 = 11000 分
+POST http://127.0.0.1:18080/api/checkout
+Content-Type: application/json
+X-Request-Id: idea-shopping-1
+
+{"sku":"BOOK","quantity":2}
+
+### 不满 100 元，应付 6000 分
+POST http://127.0.0.1:18080/api/checkout
+Content-Type: application/json
+X-Request-Id: idea-shopping-2
+
+{"sku":"BOOK","quantity":1}
+
+### 数量非法，HTTP 400
+POST http://127.0.0.1:18080/api/checkout
+Content-Type: application/json
+X-Request-Id: idea-shopping-invalid
+
+{"sku":"PEN","quantity":0}
+
+### 直接调用模拟支付接口（Gateway 会轮询 payment-1..4）
+POST http://127.0.0.1:18080/api/payments
+Content-Type: application/json
+X-Request-Id: idea-payment-direct-1
+
+{"orderId":"ORDER-DEMO-001","amountCents":11000}
+
+### K8s：异步支付，立即返回 PAYMENT_PENDING
+POST http://127.0.0.1:28080/api/checkout/async
+Content-Type: application/json
+X-Request-Id: idea-async-payment-1
+
+{"sku":"BOOK","quantity":2}
+
+### K8s：把上一个请求返回的 orderId 填到这里，查询 PXC 落库结果
+GET http://127.0.0.1:28080/api/payments/orders/ORDER-REPLACE-ME

@@ -1,0 +1,71 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.alibaba.compileflow.engine.core.xml.parser;
+
+/**
+ * Cursor over XML attributes and child elements during flow parsing.
+ *
+ * @author yusu
+ */
+public interface XmlSource {
+    boolean hasNext() throws Exception;
+
+    String nextElementName() throws Exception;
+
+    String getLocalName();
+
+    String getNamespaceURI();
+
+    String getNamespaceURI(String prefix);
+
+    String getPrefix();
+
+    String getElementText();
+
+    String getAttributeLocalName(int index);
+
+    String getAttributeValue(int index);
+
+    String getAttributeNamespace(int index);
+
+    String getAttributePrefix(int index);
+
+    int getAttributeCount();
+
+    String getString(String name);
+
+    String getCfString(String name);
+
+    boolean isEndElement(String name);
+
+    /**
+     * Advances to the next direct child, or the matching parent end element.
+     * The caller must consume each returned child's complete subtree before advancing again.
+     *
+     * @param parentElementName enclosing element name
+     * @return child element name, or {@code null} at the parent end
+     * @throws Exception when XML cannot be read
+     */
+    String nextDirectChildElementName(String parentElementName) throws Exception;
+
+    /**
+     * Advances past the current start element and its complete subtree.
+     *
+     * <p>This is intended for explicitly allowlisted, non-executable metadata.
+     * Implementations must leave the cursor on the matching end element.</p>
+     *
+     * @throws Exception when the cursor is not on a start element or the XML ends early
+     */
+    void skipCurrentElement() throws Exception;
+}

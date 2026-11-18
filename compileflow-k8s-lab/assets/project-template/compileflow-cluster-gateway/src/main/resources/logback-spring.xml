@@ -1,0 +1,14 @@
+<configuration>
+  <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="compileflow-cluster-gateway"/>
+  <property name="INSTANCE_ID" value="${INSTANCE_ID:-local}"/>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+      <layout class="org.apache.skywalking.apm.toolkit.log.logback.v1.x.mdc.TraceIdMDCPatternLogbackLayout">
+        <Pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level service=${SERVICE_NAME} instance=${INSTANCE_ID} traceId=%X{tid} %logger{36} - %msg%n</Pattern>
+      </layout>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>

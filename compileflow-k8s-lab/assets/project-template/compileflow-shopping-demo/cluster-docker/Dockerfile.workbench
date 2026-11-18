@@ -1,0 +1,14 @@
+FROM apache/skywalking-java-agent:9.8.0-java17 AS skywalking-agent
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --create-home --uid 10001 compileflow
+COPY --from=skywalking-agent /skywalking/agent /skywalking/agent
+RUN cp /skywalking/agent/optional-plugins/apm-springmvc-annotation-6.x-plugin-*.jar /skywalking/agent/plugins/ \
+    && chown -R compileflow:compileflow /skywalking
+COPY --chown=compileflow:compileflow runtime/workbench-server.jar /app/app.jar
+USER compileflow
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

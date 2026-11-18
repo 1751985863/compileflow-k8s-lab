@@ -1,0 +1,222 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: monitoring
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: compileflow
+        orgId: 1
+        folder: CompileFlow 实验
+        type: file
+        disableDeletion: true
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-compileflow-dashboard
+  namespace: monitoring
+data:
+  compileflow.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "type": "stat", "title": "k6 当前 RPS", "id": 1,
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(k6_http_reqs_total{phase=\"load\"}[1m]))", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "reqps", "decimals": 2}, "overrides": []},
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
+        },
+        {
+          "type": "stat", "title": "k6 P95 响应时间", "id": 2,
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "max(k6_http_req_duration_p95{phase=\"load\"}) * 1000", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "ms", "decimals": 2}, "overrides": []},
+          "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
+        },
+        {
+          "type": "stat", "title": "k6 HTTP 错误率", "id": 3,
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "max(k6_http_req_failed_rate{phase=\"load\"}) * 100", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "percent", "decimals": 2, "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 1}]}}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
+        },
+        {
+          "type": "stat", "title": "业务断言成功率", "id": 4,
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "min(k6_checks_rate{phase=\"load\"}) * 100", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "percent", "decimals": 2, "thresholds": {"mode": "absolute", "steps": [{"color": "red"}, {"color": "green", "value": 99}]}}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
+        },
+        {
+          "type": "timeseries", "title": "业务 Pod CPU 使用量", "id": 5,
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 4},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"compileflow-lab\", container!=\"\", image!=\"\"}[1m])) by (pod)", "legendFormat": "{{pod}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "cores"}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+        },
+        {
+          "type": "timeseries", "title": "业务 Pod 内存", "id": 6,
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 4},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(container_memory_working_set_bytes{namespace=\"compileflow-lab\", container!=\"\", image!=\"\"}) by (pod)", "legendFormat": "{{pod}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+        },
+        {
+          "type": "timeseries", "title": "Pod 容器重启次数", "id": 7,
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"expr": "sum(kube_pod_container_status_restarts_total{namespace=\"compileflow-lab\"}) by (pod)", "legendFormat": "{{pod}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+          "options": {"legend": {"displayMode": "table", "placement": "right"}, "tooltip": {"mode": "multi"}}
+        },
+        {
+          "type": "timeseries", "title": "k6 响应时间趋势", "id": 8,
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"expr": "max(k6_http_req_duration_avg{phase=\"load\"}) * 1000", "legendFormat": "平均", "refId": "A"},
+            {"expr": "max(k6_http_req_duration_p95{phase=\"load\"}) * 1000", "legendFormat": "P95", "refId": "B"},
+            {"expr": "max(k6_http_req_duration_p99{phase=\"load\"}) * 1000", "legendFormat": "P99", "refId": "C"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 41,
+      "tags": ["compileflow", "k6", "kubernetes"],
+      "templating": {"list": []},
+      "time": {"from": "now-15m", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "CompileFlow · k6 与 K8s 监控",
+      "uid": "compileflow-k6-k8s",
+      "version": 2
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      nodePort: 30300
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      initContainers:
+        - name: prepare-storage
+          image: busybox:1.37.0
+          command: ["sh", "-c", "mkdir -p /var/lib/grafana && chown -R 472:472 /var/lib/grafana"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+              value: /var/lib/grafana/dashboards/compileflow.json
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: datasource
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: dashboard
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/local/compileflow-lab/grafana
+            type: DirectoryOrCreate
+        - name: datasource
+          configMap:
+            name: grafana-datasource
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboard
+          configMap:
+            name: grafana-compileflow-dashboard
+

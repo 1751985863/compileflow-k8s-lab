@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocketmq-nameserver
+  namespace: compileflow-lab
+spec:
+  selector:
+    app: rocketmq-nameserver
+  ports:
+    - name: nameserver
+      port: 9876
+      targetPort: 9876
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketmq-nameserver
+  namespace: compileflow-lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rocketmq-nameserver
+  template:
+    metadata:
+      labels:
+        app: rocketmq-nameserver
+    spec:
+      containers:
+        - name: nameserver
+          image: apache/rocketmq:5.3.2
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args: ["exec sh mqnamesrv"]
+          env:
+            - name: JAVA_OPT_EXT
+              value: -Xms128m -Xmx128m -Xmn64m
+          ports:
+            - containerPort: 9876
+              name: nameserver
+          readinessProbe:
+            tcpSocket:
+              port: 9876
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              memory: 384Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocketmq-broker
+  namespace: compileflow-lab
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: rocketmq-broker
+  ports:
+    - name: listen
+      port: 10911
+      targetPort: 10911
+    - name: fast
+      port: 10909
+      targetPort: 10909
+    - name: ha
+      port: 10912
+      targetPort: 10912
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rocketmq-broker
+  namespace: compileflow-lab
+spec:
+  serviceName: rocketmq-broker
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: rocketmq-broker
+  template:
+    metadata:
+      labels:
+        app: rocketmq-broker
+    spec:
+      initContainers:
+        - name: prepare-store
+          image: busybox:1.37.0
+          command: ["sh", "-c", "chown -R 3000:3000 /home/rocketmq/store"]
+          volumeMounts:
+            - name: store
+              mountPath: /home/rocketmq/store
+      containers:
+        - name: broker
+          image: apache/rocketmq:5.3.2
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ORDINAL="${HOSTNAME##*-}"
+              POD_IP="$(hostname -i | awk '{print $1}')"
+              cat >/tmp/broker.conf <<EOF
+              brokerClusterName=ShoppingRocketCluster
+              brokerName=shopping-broker-${ORDINAL}
+              brokerId=0
+              brokerIP1=${POD_IP}
+              namesrvAddr=rocketmq-nameserver:9876
+              listenPort=10911
+              autoCreateTopicEnable=true
+              autoCreateSubscriptionGroup=true
+              deleteWhen=04
+              fileReservedTime=48
+              brokerRole=ASYNC_MASTER
+              flushDiskType=ASYNC_FLUSH
+              storePathRootDir=/home/rocketmq/store
+              storePathCommitLog=/home/rocketmq/store/commitlog
+              EOF
+              exec sh mqbroker -c /tmp/broker.conf
+          env:
+            - name: JAVA_OPT_EXT
+              value: -Xms384m -Xmx384m -Xmn128m
+          ports:
+            - containerPort: 10911
+              name: listen
+            - containerPort: 10909
+              name: fast
+            - containerPort: 10912
+              name: ha
+          readinessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: store
+              mountPath: /home/rocketmq/store
+  volumeClaimTemplates:
+    - metadata:
+        name: store
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rocketmq-topic-init
+  namespace: compileflow-lab
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: rocketmq-topic-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mqadmin
+          image: apache/rocketmq:5.3.2
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until sh mqadmin clusterList -n rocketmq-nameserver:9876 | grep -q ShoppingRocketCluster; do
+                echo "等待 RocketMQ Broker 注册..."
+                sleep 5
+              done
+              sh mqadmin updateTopic -n rocketmq-nameserver:9876 \
+                -c ShoppingRocketCluster -t shopping-payment-requests -r 8 -w 8
+          env:
+            - name: JAVA_OPT_EXT
+              value: -Xms64m -Xmx128m
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi

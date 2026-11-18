@@ -1,0 +1,52 @@
+{
+  "properties": [
+    {
+      "name": "compileflow.engine.components.allowed-beans",
+      "defaultValue": []
+    },
+    {
+      "name": "compileflow.engine.java-diagnostics.debug.bytecode-enabled",
+      "defaultValue": false
+    },
+    {
+      "name": "compileflow.engine.observability.mdc-propagation-enabled",
+      "defaultValue": false
+    },
+    {
+      "name": "compileflow.engine.runtime-mode",
+      "defaultValue": "COMPILED"
+    }
+  ],
+  "hints": [
+    {
+      "name": "compileflow.engine.java-diagnostics.debug.symbols",
+      "values": [
+        {
+          "value": "NONE",
+          "description": "Emit no source-level bytecode debug information."
+        },
+        {
+          "value": "LINES",
+          "description": "Emit source and line tables without local-variable tables."
+        },
+        {
+          "value": "FULL",
+          "description": "Emit source, line, and local-variable debug tables."
+        }
+      ]
+    },
+    {
+      "name": "compileflow.engine.runtime-mode",
+      "values": [
+        {
+          "value": "COMPILED",
+          "description": "Use generated Java as the optimized ProcessEngine runtime realization."
+        },
+        {
+          "value": "INTERPRETED",
+          "description": "Use the direct ProcessEngine runtime realization of the same Process semantics."
+        }
+      ]
+    }
+  ]
+}

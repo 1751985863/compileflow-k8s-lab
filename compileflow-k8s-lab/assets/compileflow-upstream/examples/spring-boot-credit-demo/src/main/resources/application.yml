@@ -1,0 +1,7 @@
+compileflow:
+  engine:
+    components:
+      # 为了安全，流程不能随意调用 Spring 中的任意 Bean。
+      # 显式白名单后，BPM 文件才可以调用 creditOperations。
+      allowed-beans:
+        - creditOperations
